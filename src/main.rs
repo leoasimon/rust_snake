@@ -64,7 +64,8 @@ impl ggez::event::EventHandler<GameError> for State {
         Ok(())
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
+    fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
+        println!("scancode: {}", input.scancode);
         match input.scancode {
             103 => {
                 if self.lock_dir != (0.0, -1.0) {
@@ -73,6 +74,12 @@ impl ggez::event::EventHandler<GameError> for State {
                 }
             }
             106 => {
+                if self.lock_dir != (1.0, 0.0) {
+                    self.dir = (1.0, 0.0);
+                    self.lock_dir = (-1.0, 0.0);
+                }
+            }
+            108 => {
                 if self.lock_dir != (0.0, 1.0) {
                     self.dir = (0.0, 1.0);
                     self.lock_dir = (0.0, -1.0);
