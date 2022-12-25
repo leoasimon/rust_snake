@@ -1,4 +1,5 @@
 use ggez::*;
+use rand::Rng;
 
 const P_SIZE: f32 = 10.0; // "pixel" size
 const SCREEN_WIDTH: f32 = 700.0;
@@ -13,6 +14,8 @@ struct State {
     snake: Vec<(f32, f32)>,
     dir: (f32, f32),
     lock_dir: (f32, f32),
+    food: (f32, f32),
+    rng: rand::rngs::ThreadRng
 }
 
 fn update_pos(pos: (f32, f32), dir: (f32, f32)) -> (f32, f32) {
@@ -49,6 +52,13 @@ impl ggez::event::EventHandler<GameError> for State {
             }
             self.snake = updated_snake;
         }
+        if self.snake[0].0 == self.food.0 && self.snake[1].1 == self.food.1 {
+            self.snake.insert(0, update_pos(self.snake[0], self.dir));
+            self.food = (
+                self.rng.gen_range(0..SPW as usize) as f32,
+                self.rng.gen_range(0..SPH as usize) as f32
+            ); 
+        }
         Ok(())
     }
 
@@ -60,13 +70,15 @@ impl ggez::event::EventHandler<GameError> for State {
                 let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::BLUE).unwrap();
                 canvas.draw(&mesh, glam::vec2(0.0, 0.0));
             });
+        let rect = graphics::Rect::new(self.food.0 * P_SIZE, self.food.1 * P_SIZE, P_SIZE, P_SIZE);
+        let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::RED).unwrap();
+        canvas.draw(&mesh, glam::vec2(0.0, 0.0));
         canvas.finish(ctx)?;
         Ok(())
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
-        println!("scancode: {}", input.scancode);
-        match input.scancode {
+        atch input.scancode {
             103 => {
                 if self.lock_dir != (0.0, -1.0) {
                     self.dir = (0.0, -1.0);
@@ -99,12 +111,18 @@ impl ggez::event::EventHandler<GameError> for State {
 }
 
 fn main() {
+    let mut rng = rand::thread_rng();
     let state = State {
         dt: std::time::Duration::new(0, 0),
         snake: vec![(0.0, 5.0), (0.0, 6.0)],
         curr_ms: 0,
         dir: (1.0, 0.0),
-        lock_dir : (-1.0, 0.0)
+        lock_dir : (-1.0, 0.0),
+        food: (
+            rng.gen_range(0..SPW as usize) as f32,
+            rng.gen_range(0..SPH as usize) as f32
+        ),
+        rng
     };
     
     let (ctx, event_loop) = ContextBuilder::new("hello_ggez", "awesome_person")
