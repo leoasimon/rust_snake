@@ -1,5 +1,6 @@
 use ggez::*;
 use rand::Rng;
+use std::collections::HashSet;
 
 const P_SIZE: f32 = 10.0; // "pixel" size
 const SCREEN_WIDTH: f32 = 700.0;
@@ -8,14 +9,20 @@ const UPDATE_RATE: u128 = 30; // n millis for updating (fixed Update)
 const SPW: f32 = SCREEN_WIDTH / P_SIZE;
 const SPH: f32 = SCREEN_HEIGTH / P_SIZE;
 
+enum Status {
+    Over,
+    Ongoing
+}
+
 struct State {
-    dt: std::time::Duration,
+dt: std::time::Duration,
     curr_ms: u128,
     snake: Vec<(f32, f32)>,
     dir: (f32, f32),
     lock_dir: (f32, f32),
     food: (f32, f32),
-    rng: rand::rngs::ThreadRng
+    rng: rand::rngs::ThreadRng,
+    status: Status,
 }
 
 fn update_pos(pos: (f32, f32), dir: (f32, f32)) -> (f32, f32) {
@@ -41,25 +48,37 @@ impl ggez::event::EventHandler<GameError> for State {
         self.dt = ctx.time.delta();
         self.curr_ms += ctx.time.delta().as_millis();
 
-        if self.curr_ms > UPDATE_RATE {
-            self.curr_ms = 0;
-            let head = self.snake[0];
-            let tail = &self.snake[0..(self.snake.len() - 1)];
-            let mut updated_snake: Vec<(f32, f32)> = vec![];
-            updated_snake.push(update_pos(head, self.dir));
-            for pos in tail {
-                updated_snake.push(*pos);
+        match self.status {
+            Status::Over =>  {
+                Ok(())
             }
-            self.snake = updated_snake;
+            Status::Ongoing => {
+                if self.curr_ms > UPDATE_RATE {
+                    self.curr_ms = 0;
+                    let head = self.snake[0];
+                    let tail = &self.snake[0..(self.snake.len() - 1)];
+                    let mut updated_snake: Vec<(f32, f32)> = vec![];
+                    updated_snake.push(update_pos(head, self.dir));
+                    for pos in tail {
+                        updated_snake.push(*pos);
+                    }
+                    self.snake = updated_snake;
+                }
+                if self.snake[0].0 == self.food.0 && self.snake[1].1 == self.food.1 {
+                    self.snake.insert(0, update_pos(self.snake[0], self.dir));
+                    self.food = (
+                            self.rng.gen_range(0..SPW as usize) as f32,
+                            self.rng.gen_range(0..SPH as usize) as f32
+                            ); 
+                }
+                let mut uniq = HashSet::new();
+                let alive = self.snake.iter().all(move |x| uniq.insert(format!("{}{}", x.0, x.1)));
+                if !alive {
+                    self.status = Status::Over;
+                }
+                Ok(())
+            }
         }
-        if self.snake[0].0 == self.food.0 && self.snake[1].1 == self.food.1 {
-            self.snake.insert(0, update_pos(self.snake[0], self.dir));
-            self.food = (
-                self.rng.gen_range(0..SPW as usize) as f32,
-                self.rng.gen_range(0..SPH as usize) as f32
-            ); 
-        }
-        Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
@@ -67,9 +86,9 @@ impl ggez::event::EventHandler<GameError> for State {
         self.snake.iter()
             .map(|(x, y)| graphics::Rect::new(*x * P_SIZE, *y * P_SIZE, P_SIZE, P_SIZE))
             .for_each(|rect| {
-                let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::BLUE).unwrap();
-                canvas.draw(&mesh, glam::vec2(0.0, 0.0));
-            });
+                    let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::BLUE).unwrap();
+                    canvas.draw(&mesh, glam::vec2(0.0, 0.0));
+                    });
         let rect = graphics::Rect::new(self.food.0 * P_SIZE, self.food.1 * P_SIZE, P_SIZE, P_SIZE);
         let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::RED).unwrap();
         canvas.draw(&mesh, glam::vec2(0.0, 0.0));
@@ -78,7 +97,7 @@ impl ggez::event::EventHandler<GameError> for State {
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
-        atch input.scancode {
+        match input.scancode {
             103 => {
                 if self.lock_dir != (0.0, -1.0) {
                     self.dir = (0.0, -1.0);
@@ -113,18 +132,19 @@ impl ggez::event::EventHandler<GameError> for State {
 fn main() {
     let mut rng = rand::thread_rng();
     let state = State {
-        dt: std::time::Duration::new(0, 0),
-        snake: vec![(0.0, 5.0), (0.0, 6.0)],
+dt: std::time::Duration::new(0, 0),
+        snake: (0..30).map(|e| (0.0, e as f32)).collect(),
         curr_ms: 0,
         dir: (1.0, 0.0),
         lock_dir : (-1.0, 0.0),
         food: (
-            rng.gen_range(0..SPW as usize) as f32,
-            rng.gen_range(0..SPH as usize) as f32
-        ),
-        rng
+                rng.gen_range(0..SPW as usize) as f32,
+                rng.gen_range(0..SPH as usize) as f32
+              ),
+        rng,
+        status: Status::Ongoing
     };
-    
+
     let (ctx, event_loop) = ContextBuilder::new("hello_ggez", "awesome_person")
         .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGTH))
         .build()
