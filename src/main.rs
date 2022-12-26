@@ -23,6 +23,7 @@ dt: std::time::Duration,
     food: (f32, f32),
     rng: rand::rngs::ThreadRng,
     status: Status,
+    score: u32
 }
 
 fn update_pos(pos: (f32, f32), dir: (f32, f32)) -> (f32, f32) {
@@ -92,8 +93,20 @@ impl ggez::event::EventHandler<GameError> for State {
         let rect = graphics::Rect::new(self.food.0 * P_SIZE, self.food.1 * P_SIZE, P_SIZE, P_SIZE);
         let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::RED).unwrap();
         canvas.draw(&mesh, glam::vec2(0.0, 0.0));
-        canvas.finish(ctx)?;
-        Ok(())
+        match self.status {
+            Status::Over => {
+                let text = graphics::Text::new(format!("Game over\nScore: {}", self.score));
+                let dest = glam::vec2(50.0, 50.0);
+                let params = graphics::DrawParam::default().dest(dest).color(graphics::Color::MAGENTA);
+                canvas.draw(&text, params);
+                canvas.finish(ctx)?;
+                Ok(())
+            }
+            _ => {
+                canvas.finish(ctx)?;
+                Ok(())
+            }
+        }
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
@@ -142,7 +155,8 @@ dt: std::time::Duration::new(0, 0),
                 rng.gen_range(0..SPH as usize) as f32
               ),
         rng,
-        status: Status::Ongoing
+        status: Status::Ongoing,
+        score: 0
     };
 
     let (ctx, event_loop) = ContextBuilder::new("hello_ggez", "awesome_person")
