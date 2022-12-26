@@ -88,6 +88,7 @@ impl ggez::event::EventHandler<GameError> for State {
                     self.snake = updated_snake;
                 }
                 if self.snake[0].0 == self.food.0 && self.snake[1].1 == self.food.1 {
+                    self.score += 10;
                     self.snake.insert(0, update_pos(self.snake[0], self.dir));
                     self.food = (
                             self.rng.gen_range(0..SPW as usize) as f32,
@@ -114,11 +115,14 @@ impl ggez::event::EventHandler<GameError> for State {
                     });
         let rect = graphics::Rect::new(self.food.0 * P_SIZE, self.food.1 * P_SIZE, P_SIZE, P_SIZE);
         let mesh = graphics::Mesh::new_rectangle(&ctx.gfx, graphics::DrawMode::fill(), rect, graphics::Color::RED).unwrap();
+        let score_text = graphics::Text::new(format!("ESC - QUIT\nSCORE: {}", self.score));
+        let score_params = graphics::DrawParam::default().dest(glam::vec2(25.0, 25.0)).color(graphics::Color::MAGENTA);
+        canvas.draw(&score_text, score_params);
         canvas.draw(&mesh, glam::vec2(0.0, 0.0));
         match self.status {
             Status::Over => {
-                let text = graphics::Text::new(format!("Game over\nScore: {}", self.score));
-                let dest = glam::vec2(50.0, 50.0);
+                let text = graphics::Text::new(format!("Game over\nScore: {}\ntype 1 to replay", self.score));
+                let dest = glam::vec2(25.0, 75.0);
                 let params = graphics::DrawParam::default().dest(dest).color(graphics::Color::MAGENTA);
                 canvas.draw(&text, params);
                 canvas.finish(ctx)?;
@@ -131,16 +135,17 @@ impl ggez::event::EventHandler<GameError> for State {
         }
     }
 
-    fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
+    fn key_down_event(&mut self, ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
         match self.status {
             Status::Ongoing => {
                 match input.scancode {
-                    103 => {
-                        if self.lock_dir != (0.0, -1.0) {
-                            self.dir = (0.0, -1.0);
-                            self.lock_dir = (0.0, 1.0);
-                        }
-                    }
+                    1 => ctx.request_quit(),
+                      103 => {
+                          if self.lock_dir != (0.0, -1.0) {
+                              self.dir = (0.0, -1.0);
+                              self.lock_dir = (0.0, 1.0);
+                          }
+                      }
                     106 => {
                         if self.lock_dir != (1.0, 0.0) {
                             self.dir = (1.0, 0.0);
@@ -164,11 +169,11 @@ impl ggez::event::EventHandler<GameError> for State {
                 Ok(())
             }
             Status::Over => {
-                println!("scancode: {}", input.scancode);
                 match input.scancode {
-                    2 => {
-                        *self = State::default();
-                    }
+                    1 => ctx.request_quit(),
+                      2 => {
+                          *self = State::default();
+                      }
                     _ => {}
                 }
                 Ok(())
