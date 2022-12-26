@@ -1,6 +1,7 @@
 use ggez::*;
 use rand::Rng;
 use std::collections::HashSet;
+use std::default;
 
 const P_SIZE: f32 = 10.0; // "pixel" size
 const SCREEN_WIDTH: f32 = 700.0;
@@ -25,6 +26,27 @@ dt: std::time::Duration,
     status: Status,
     score: u32
 }
+
+impl default::Default for State {
+    fn default() -> Self {
+        let mut rng = rand::thread_rng();
+        State {
+dt: std::time::Duration::new(0, 0),
+        snake: (0..30).map(|e| (0.0, e as f32)).collect(),
+        curr_ms: 0,
+        dir: (1.0, 0.0),
+        lock_dir : (-1.0, 0.0),
+        food: (
+                rng.gen_range(0..SPW as usize) as f32,
+                rng.gen_range(0..SPH as usize) as f32
+              ),
+        rng,
+        score: 0,
+        status: Status::Ongoing
+        }
+    }
+}
+
 
 fn update_pos(pos: (f32, f32), dir: (f32, f32)) -> (f32, f32) {
     let (dir_x, dir_y) = dir;
@@ -110,54 +132,54 @@ impl ggez::event::EventHandler<GameError> for State {
     }
 
     fn key_down_event(&mut self, _ctx: &mut Context, input: input::keyboard::KeyInput, _repeated: bool) -> GameResult {
-        match input.scancode {
-            103 => {
-                if self.lock_dir != (0.0, -1.0) {
-                    self.dir = (0.0, -1.0);
-                    self.lock_dir = (0.0, 1.0);
+        match self.status {
+            Status::Ongoing => {
+                match input.scancode {
+                    103 => {
+                        if self.lock_dir != (0.0, -1.0) {
+                            self.dir = (0.0, -1.0);
+                            self.lock_dir = (0.0, 1.0);
+                        }
+                    }
+                    106 => {
+                        if self.lock_dir != (1.0, 0.0) {
+                            self.dir = (1.0, 0.0);
+                            self.lock_dir = (-1.0, 0.0);
+                        }
+                    }
+                    108 => {
+                        if self.lock_dir != (0.0, 1.0) {
+                            self.dir = (0.0, 1.0);
+                            self.lock_dir = (0.0, -1.0);
+                        }
+                    }
+                    105 => {
+                        if self.lock_dir != (-1.0, 0.0) {
+                            self.dir = (-1.0, 0.0);
+                            self.lock_dir = (1.0, 0.0);
+                        }
+                    }
+                    _ => {}
                 }
+                Ok(())
             }
-            106 => {
-                if self.lock_dir != (1.0, 0.0) {
-                    self.dir = (1.0, 0.0);
-                    self.lock_dir = (-1.0, 0.0);
+            Status::Over => {
+                println!("scancode: {}", input.scancode);
+                match input.scancode {
+                    2 => {
+                        *self = State::default();
+                    }
+                    _ => {}
                 }
+                Ok(())
             }
-            108 => {
-                if self.lock_dir != (0.0, 1.0) {
-                    self.dir = (0.0, 1.0);
-                    self.lock_dir = (0.0, -1.0);
-                }
-            }
-            105 => {
-                if self.lock_dir != (-1.0, 0.0) {
-                    self.dir = (-1.0, 0.0);
-                    self.lock_dir = (1.0, 0.0);
-                }
-            }
-            _ => {}
         }
-        Ok(())
     }
-
 }
 
+
 fn main() {
-    let mut rng = rand::thread_rng();
-    let state = State {
-dt: std::time::Duration::new(0, 0),
-        snake: (0..30).map(|e| (0.0, e as f32)).collect(),
-        curr_ms: 0,
-        dir: (1.0, 0.0),
-        lock_dir : (-1.0, 0.0),
-        food: (
-                rng.gen_range(0..SPW as usize) as f32,
-                rng.gen_range(0..SPH as usize) as f32
-              ),
-        rng,
-        status: Status::Ongoing,
-        score: 0
-    };
+    let state = State::default();
 
     let (ctx, event_loop) = ContextBuilder::new("hello_ggez", "awesome_person")
         .window_mode(conf::WindowMode::default().dimensions(SCREEN_WIDTH, SCREEN_HEIGTH))
